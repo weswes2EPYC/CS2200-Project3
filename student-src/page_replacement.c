@@ -24,13 +24,30 @@ pfn_t select_victim_frame(void);
  *      swap_write() to save the contents to the swap queue.
  * ----------------------------------------------------------------------------------
  */
-pfn_t free_frame(void) {
+pfn_t free_frame(void)
+{
     pfn_t victim_pfn;
     victim_pfn = select_victim_frame();
 
     // TODO: evict any mapped pages.
-    if (frame_table[victim_pfn].mapped) {
+    if (frame_table[victim_pfn].mapped)
+    {
+        pcb_t *victim_pcb = frame_table[victim_pfn].process;
+        vpn_t victim_vpn = frame_table[victim_pfn].vpn;
 
+        pte_t *pte = get_page_table_entry(victim_vpn, victim_pcb->saved_ptbr, mem);
+
+        if (pte->dirty)
+        {
+            swap_write(pte, &mem[victim_pfn * PAGE_SIZE]);
+            pte->dirty = 0;
+        }
+
+        pte->valid = 0;
+
+        frame_table[victim_pfn].mapped = 0;
+        frame_table[victim_pfn].process = NULL;
+        frame_table[victim_pfn].vpn = 0;
     }
 
     return victim_pfn;
@@ -52,39 +69,47 @@ pfn_t free_frame(void) {
  *      - Use the global last_evicted to keep track of the pointer into the frame table
  * ----------------------------------------------------------------------------------
  */
-pfn_t select_victim_frame() {
+pfn_t select_victim_frame()
+{
     /* See if there are any free frames first */
     size_t num_entries = MEM_SIZE / PAGE_SIZE;
-    for (size_t i = 0; i < num_entries; i++) {
+    for (size_t i = 0; i < num_entries; i++)
+    {
         if (!frame_table[i].protected && !frame_table[i].mapped)
         {
             return i;
         }
     }
 
-    if (replacement == RANDOM) {
+    if (replacement == RANDOM)
+    {
         /* Play Russian Roulette to decide which frame to evict */
         pfn_t unprotected_found = NUM_FRAMES;
-        for (pfn_t i = 0; i < num_entries; i++) {
-            if (!frame_table[i].protected) {
+        for (pfn_t i = 0; i < num_entries; i++)
+        {
+            if (!frame_table[i].protected)
+            {
                 unprotected_found = i;
-                if (prng_rand() % 2) {
+                if (prng_rand() % 2)
+                {
                     return i;
                 }
             }
         }
         /* If no victim found yet take the last unprotected frame
            seen */
-        if (unprotected_found < NUM_FRAMES) {
+        if (unprotected_found < NUM_FRAMES)
+        {
             return unprotected_found;
         }
     }
-    else if (replacement == APPROX_LRU) {
+    else if (replacement == APPROX_LRU)
+    {
         /* Implement a LRU algorithm here */
     }
-    else if (replacement == FIFO) {
+    else if (replacement == FIFO)
+    {
         /* Implement a FIFO algorithm here */
-        
     }
 
     // If every frame is protected, give up. This should never happen on the traces we provide you.

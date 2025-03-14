@@ -84,7 +84,34 @@ void proc_cleanup(pcb_t *proc)
     // TODO: Iterate the proc's page table and clean up each valid page
     for (size_t i = 0; i < NUM_PAGES; i++)
     {
+        pte_t *table = (pte_t *)(mem + (proc->saved_ptbr * PAGE_SIZE));
+
+        for (size_t i = 0; i < NUM_PAGES; i++)
+        {
+            pte_t *pte = &table[i];
+
+            if (pte->valid)
+            {
+                if (swap_exists(pte))
+                {
+                    swap_free(pte);
+                }
+
+                if (pte->pfn < NUM_FRAMES)
+                {
+                    frame_table[pte->pfn].mapped = 0;
+                    frame_table[pte->pfn].process = NULL;
+                }
+
+                pte->valid = 0;
+                pte->dirty = 0;
+                pte->sid = 0;
+            }
+        }
     }
+
+    frame_table[proc->saved_ptbr].mapped = 0;
+    frame_table[proc->saved_ptbr].process = NULL;
 }
 
 #pragma GCC diagnostic pop
