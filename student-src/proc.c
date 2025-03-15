@@ -28,13 +28,13 @@
 void proc_init(pcb_t *proc)
 {
     pfn_t new_frame = free_frame();
+    memset(mem + (PAGE_SIZE * new_frame), 0, PAGE_SIZE);
+
     frame_table[new_frame].protected = 1;
     frame_table[new_frame].mapped = 1;
     frame_table[new_frame].process = proc;
 
     proc->saved_ptbr = new_frame;
-
-    memset(mem + (PAGE_SIZE * new_frame), 0, PAGE_SIZE);
 }
 
 /**
