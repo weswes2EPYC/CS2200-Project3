@@ -48,6 +48,7 @@ void page_fault(vaddr_t address)
     frame_table[new_frame].process = current_process;
     frame_table[new_frame].vpn = vpn;
     frame_table[new_frame].ref_count = 1;
+    stats.page_faults++;
 }
 
 #pragma GCC diagnostic pop

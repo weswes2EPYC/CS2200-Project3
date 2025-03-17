@@ -16,5 +16,12 @@ stats_t stats;
  * -----------------------------------------------------------------------------------
  */
 void compute_stats() {
+    if (stats.accesses == 0) {
+        stats.amat = 0;
+        return;
+    }
 
+    double miss_rate = (double)stats.page_faults / stats.accesses;
+    double miss_penalty = DISK_PAGE_READ_TIME + ((stats.page_faults > 0) ? ((double)stats.writebacks / stats.page_faults) * DISK_PAGE_WRITE_TIME : 0);
+    stats.amat = MEMORY_ACCESS_TIME + (miss_rate * miss_penalty);
 }

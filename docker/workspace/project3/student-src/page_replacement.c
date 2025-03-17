@@ -89,6 +89,15 @@ pfn_t select_victim_frame()
         {
             if (!frame_table[i].protected)
             {
+                pcb_t *process = frame_table[unprotected_found].process;
+                if (process) {
+                    pte_t *pte = get_page_table(process->saved_ptbr, mem);
+
+                    if (pte->dirty) {
+                        stats.writebacks++;
+                    }
+                }
+
                 unprotected_found = i;
                 if (prng_rand() % 2)
                 {
@@ -105,11 +114,51 @@ pfn_t select_victim_frame()
     }
     else if (replacement == APPROX_LRU)
     {
-        /* Implement a LRU algorithm here */
+        pfn_t victim = 0;
+        uint8_t minimum = 0xFF;
+
+        for (pfn_t i = 0; i < num_entries; i++)
+        {
+            if (!frame_table[i].protected && frame_table[i].ref_count < minimum) {
+
+                pcb_t *process = frame_table[victim].process;
+                if (process) {
+                    pte_t *pte = get_page_table(process->saved_ptbr, mem);
+
+                    if (pte->dirty) {
+                        stats.writebacks++;
+                    }
+                }
+                
+                minimum = frame_table[i].ref_count;
+                victim = i;
+            }
+        }
+        
+        last_evicted = victim;
+        return victim;
     }
     else if (replacement == FIFO)
     {
-        /* Implement a FIFO algorithm here */
+        pfn_t victim = last_evicted;
+        for (pfn_t i = 0; i < num_entries; i++)
+        {
+            victim = (victim + 1) % num_entries;
+            if (!frame_table[victim].protected) {
+                pcb_t *process = frame_table[victim].process;
+                if (process) {
+                    pte_t *pte = get_page_table(process->saved_ptbr, mem);
+
+                    if (pte->dirty) {
+                        stats.writebacks++;
+                    }
+                }
+
+                last_evicted = victim;
+                return victim;
+            }
+        }
+        
     }
 
     // If every frame is protected, give up. This should never happen on the traces we provide you.
@@ -127,5 +176,25 @@ pfn_t select_victim_frame()
  */
 void daemon_update(void)
 {
-    /** FIX ME */
+    size_t num_entries = MEM_SIZE/PAGE_SIZE;
+    for (size_t i = 0; i < num_entries; i++)
+    {
+        if (frame_table[i].mapped) {
+            pcb_t *process = frame_table[i].process;
+            vpn_t vpn = frame_table[i].vpn;
+
+            if (process && process->saved_ptbr) {
+                pte_t *ptable = (pte_t *)(process->saved_ptbr);
+                pte_t *pte = &ptable[vpn];
+
+                frame_table[i].ref_count >>= 1;
+
+                if (pte->referenced) {
+                    frame_table[i].ref_count |= (1 << 7);
+                    pte->referenced = 0;
+                }
+            }
+        }
+    }
+    
 }

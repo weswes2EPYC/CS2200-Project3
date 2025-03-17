@@ -73,5 +73,6 @@ uint8_t mem_access(vaddr_t address, char access, uint8_t data)
     }
 
     frame_table[pte->pfn].ref_count++;
+    stats.accesses++;
     return 0;
 }
