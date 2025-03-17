@@ -55,7 +55,6 @@ uint8_t mem_access(vaddr_t address, char access, uint8_t data)
     uint16_t offset = get_vaddr_offset(address);
     pte_t *pte = get_page_table_entry(vpn, PTBR, mem);
 
-    frame_table[pte->pfn].ref_count++;
     stats.accesses++;
 
     if (!pte->valid)

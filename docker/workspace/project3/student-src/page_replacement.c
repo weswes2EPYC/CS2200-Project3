@@ -113,15 +113,13 @@ pfn_t select_victim_frame()
         pfn_t victim = 0;
         uint8_t minimum = 0xFF;
 
-        for (pfn_t i = 0; i < num_entries; i++)
+        for (pfn_t i = 0; i < NUM_FRAMES; i++)
         {
-            if (!frame_table[i].protected && frame_table[i].ref_count < minimum) {                
+            if (!frame_table[i].protected && frame_table[i].mapped && frame_table[i].ref_count < minimum) {                
                 minimum = frame_table[i].ref_count;
                 victim = i;
             }
         }
-        
-        last_evicted = victim;
         return victim;
     }
     else if (replacement == FIFO)
@@ -158,6 +156,10 @@ void daemon_update(void)
         fte_t *frame = &frame_table[i];
         
         if (!frame->mapped) {
+            continue;
+        }
+
+        if (frame->protected) {
             continue;
         }
 

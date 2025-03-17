@@ -98,6 +98,7 @@ void proc_cleanup(pcb_t *proc)
             {
                 frame_table[pte->pfn].mapped = 0;
                 frame_table[pte->pfn].process = NULL;
+                frame_table[pte->pfn].ref_count = 0;
             }
 
             pte->valid = 0;
@@ -109,6 +110,7 @@ void proc_cleanup(pcb_t *proc)
     frame_table[proc->saved_ptbr].mapped = 0;
     frame_table[proc->saved_ptbr].process = NULL;
     frame_table[proc->saved_ptbr].protected = 0;
+    frame_table[proc->saved_ptbr].ref_count = 0;
 }
 
 #pragma GCC diagnostic pop
