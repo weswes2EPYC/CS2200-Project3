@@ -34,6 +34,7 @@ void proc_init(pcb_t *proc)
     frame_table[new_frame].mapped = 1;
     frame_table[new_frame].process = proc;
 
+    proc->state = PROC_RUNNING;
     proc->saved_ptbr = new_frame;
 }
 
@@ -56,14 +57,14 @@ void proc_init(pcb_t *proc)
  */
 void context_switch(pcb_t *proc)
 {
-    if (current_process != NULL)
-    {
-        current_process->state = PROC_STOPPED;
-    }
+    // if (current_process != NULL)
+    // {
+    //     current_process->state = PROC_STOPPED;
+    // }
 
     PTBR = proc->saved_ptbr;
     current_process = proc;
-    proc->state = PROC_RUNNING;
+    // proc->state = PROC_RUNNING;
 }
 
 /**
@@ -87,13 +88,12 @@ void proc_cleanup(pcb_t *proc)
     {
         pte_t *pte = &table[i];
 
+        if (swap_exists(pte))
+        {
+            swap_free(pte);
+        }
         if (pte->valid)
         {
-            if (swap_exists(pte))
-            {
-                swap_free(pte);
-            }
-
             if (pte->pfn < NUM_FRAMES)
             {
                 frame_table[pte->pfn].mapped = 0;

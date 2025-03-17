@@ -55,12 +55,16 @@ uint8_t mem_access(vaddr_t address, char access, uint8_t data)
     uint16_t offset = get_vaddr_offset(address);
     pte_t *pte = get_page_table_entry(vpn, PTBR, mem);
 
+    frame_table[pte->pfn].ref_count++;
+    stats.accesses++;
+
     if (!pte->valid)
     {
         page_fault(address);
     }
 
     paddr_t physical_addr = get_physical_address(pte->pfn, offset);
+    pte->referenced = 1;
 
     if (access == 'r')
     {
@@ -71,8 +75,5 @@ uint8_t mem_access(vaddr_t address, char access, uint8_t data)
         mem[physical_addr] = data;
         pte->dirty = 1;
     }
-
-    frame_table[pte->pfn].ref_count++;
-    stats.accesses++;
     return 0;
 }

@@ -19,12 +19,12 @@
 
 static inline vpn_t get_vaddr_vpn(vaddr_t addr)
 {
-    return addr >> OFFSET_LEN;
+    return (vpn_t)(addr >> OFFSET_LEN);
 }
 
 static inline uint16_t get_vaddr_offset(vaddr_t addr)
 {
-    return addr & (PAGE_SIZE - 1);
+    return (uint16_t)(addr & (PAGE_SIZE - 1));
 }
 
 static inline pte_t *get_page_table(pfn_t ptbr, uint8_t *memory)
@@ -34,12 +34,12 @@ static inline pte_t *get_page_table(pfn_t ptbr, uint8_t *memory)
 
 static inline pte_t *get_page_table_entry(vpn_t vpn, pfn_t ptbr, uint8_t *memory)
 {
-    return &get_page_table(ptbr, memory)[vpn];
+    return (pte_t *)(get_page_table(ptbr, memory) + vpn);
 }
 
 static inline paddr_t get_physical_address(pfn_t pfn, uint16_t offset)
 {
-    return (pfn * PAGE_SIZE) + offset;
+    return (paddr_t)((pfn * PAGE_SIZE) + offset);
 }
 
 #pragma GCC diagnostic pop

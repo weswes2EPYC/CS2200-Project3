@@ -32,22 +32,27 @@ void page_fault(vaddr_t address)
     pte_t *pte = get_page_table_entry(vpn, PTBR, mem);
     pfn_t new_frame = free_frame();
 
+    uint8_t *new_frame_address = mem + (new_frame * PAGE_SIZE);
+
     if (swap_exists(pte))
     {
-        swap_read(pte, new_frame);
+        swap_read(pte, new_frame_address);
     }
     else
     {
-        memset(mem + (new_frame * PAGE_SIZE), 0, PAGE_SIZE);
+        memset(new_frame_address, 0, PAGE_SIZE);
     }
 
     pte->valid = 1;
     pte->pfn = new_frame;
+    pte->referenced = 0;
+    pte->dirty = 0;
 
     frame_table[new_frame].mapped = 1;
+    frame_table[new_frame].protected = 0;
     frame_table[new_frame].process = current_process;
     frame_table[new_frame].vpn = vpn;
-    frame_table[new_frame].ref_count = 1;
+    frame_table[new_frame].ref_count = 0;
     stats.page_faults++;
 }
 

@@ -37,18 +37,23 @@ pfn_t free_frame(void)
 
         pte_t *pte = get_page_table_entry(victim_vpn, victim_pcb->saved_ptbr, mem);
 
+        uint8_t *victim_addr = mem + (victim_pfn * PAGE_SIZE);
+
         if (pte->dirty)
         {
-            swap_write(pte, &mem[victim_pfn * PAGE_SIZE]);
+            swap_write(pte, victim_addr);
+            stats.writebacks++;
             pte->dirty = 0;
         }
 
         pte->valid = 0;
-
-        frame_table[victim_pfn].mapped = 0;
-        frame_table[victim_pfn].process = NULL;
-        frame_table[victim_pfn].vpn = 0;
+        pte->referenced = 0;
     }
+
+    frame_table[victim_pfn].mapped = 0;
+    frame_table[victim_pfn].process = NULL;
+    frame_table[victim_pfn].ref_count = 0;
+    frame_table[victim_pfn].protected = 0;
 
     return victim_pfn;
 }
@@ -89,15 +94,6 @@ pfn_t select_victim_frame()
         {
             if (!frame_table[i].protected)
             {
-                pcb_t *process = frame_table[unprotected_found].process;
-                if (process) {
-                    pte_t *pte = get_page_table(process->saved_ptbr, mem);
-
-                    if (pte->dirty) {
-                        stats.writebacks++;
-                    }
-                }
-
                 unprotected_found = i;
                 if (prng_rand() % 2)
                 {
@@ -119,17 +115,7 @@ pfn_t select_victim_frame()
 
         for (pfn_t i = 0; i < num_entries; i++)
         {
-            if (!frame_table[i].protected && frame_table[i].ref_count < minimum) {
-
-                pcb_t *process = frame_table[victim].process;
-                if (process) {
-                    pte_t *pte = get_page_table(process->saved_ptbr, mem);
-
-                    if (pte->dirty) {
-                        stats.writebacks++;
-                    }
-                }
-                
+            if (!frame_table[i].protected && frame_table[i].ref_count < minimum) {                
                 minimum = frame_table[i].ref_count;
                 victim = i;
             }
@@ -145,15 +131,6 @@ pfn_t select_victim_frame()
         {
             victim = (victim + 1) % num_entries;
             if (!frame_table[victim].protected) {
-                pcb_t *process = frame_table[victim].process;
-                if (process) {
-                    pte_t *pte = get_page_table(process->saved_ptbr, mem);
-
-                    if (pte->dirty) {
-                        stats.writebacks++;
-                    }
-                }
-
                 last_evicted = victim;
                 return victim;
             }
@@ -176,25 +153,28 @@ pfn_t select_victim_frame()
  */
 void daemon_update(void)
 {
-    size_t num_entries = MEM_SIZE/PAGE_SIZE;
-    for (size_t i = 0; i < num_entries; i++)
+    for (size_t i = 0; i < NUM_FRAMES; i++)
     {
-        if (frame_table[i].mapped) {
-            pcb_t *process = frame_table[i].process;
-            vpn_t vpn = frame_table[i].vpn;
-
-            if (process && process->saved_ptbr) {
-                pte_t *ptable = (pte_t *)(process->saved_ptbr);
-                pte_t *pte = &ptable[vpn];
-
-                frame_table[i].ref_count >>= 1;
-
-                if (pte->referenced) {
-                    frame_table[i].ref_count |= (1 << 7);
-                    pte->referenced = 0;
-                }
-            }
+        fte_t *frame = &frame_table[i];
+        
+        if (!frame->mapped) {
+            continue;
         }
+
+        pcb_t *process = frame->process;
+        if (!process) {
+            continue;
+        }
+
+        pte_t *pte = get_page_table_entry(frame->vpn, process->saved_ptbr, mem);
+
+        frame->ref_count >>= 1;
+
+        if (pte->referenced) {
+            frame->ref_count |= (1<<7);
+        }
+
+        pte->referenced = 0;
     }
     
 }
